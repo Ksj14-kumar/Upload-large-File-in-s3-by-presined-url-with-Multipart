@@ -1,0 +1,138 @@
+service: sssss
+# frameworkVersion: "3"
+configValidationMode: error
+# useDotenv: true
+
+provider:
+  name: aws
+  runtime: nodejs14.x
+  stage: dev
+  region: us-east-1
+  environment:
+    bucket_name: ${self:custom.BUCKET_FILES_NAME}
+    fileType: ${self:custom.filetype}
+    SecretKey: ${self:custom.secretKey}
+    # BUCKET_FILES_NAME: ${env:BUCKET_FILES_NAME}
+    # MAX_ATTACHMENT_SIZE_ALLOWED: ${env:MAX_ATTACHMENT_SIZE_ALLOWED}
+    # MEDIA_TYPE_ALLOWED: ${env:MEDIA_TYPE_ALLOWED}
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - "s3:ListBucketMultipartUploads"
+        - "s3:GetObject"
+        - "s3:PutObject"
+        # - "s3:AbortMultipartUpload"
+      Resource: "*"
+    # - Effect: Allow
+    #   Action:
+    #     - "s3:*Object*"
+    #     - "s3:ListMultipartUploadParts"
+
+  deploymentBucket:
+    skipPolicySetup: true
+
+custom:
+  BUCKET_FILES_NAME: sanju-bucket-1256
+  filetype: image/jpg,image/jpeg,image/png,image/svg,image/webp,video/mp4
+  secretKey: zversal-social
+
+functions:
+  excutionPayload:
+    # handler: src/fileupload.excutionPayload
+    handler: src/fileupload1.executionPayload
+    events:
+      - s3:
+          bucket: ${self:custom.BUCKET_FILES_NAME}
+          event: s3:ObjectCreated:*
+          existing: true
+          # rules:
+          #   - suffix: .pdf
+          #   - prefix: documents
+  getSignedURL1:
+    handler: src/fileupload1.getSignedURL1
+    events:
+      - http:
+          path: /getSignedURL1
+          method: get
+          cors: true
+  getFile:
+    handler: src/fileupload1.getFile
+    events:
+      - http:
+          path: file/{ID}
+          method: get
+          cors: true
+
+  multiPartFile:
+    handler: src/Multipart.getmultipartID
+    timeout: 29
+    description: get the file id for upload large file
+    # memorySize: 126
+    events:
+      - http:
+          path: /file/id
+          method: post
+          cors: true
+          # private: true
+
+    #upload file parts
+  uploadParts:
+    handler: src/Multipart.uploadParts
+    timeout: 29
+    description: upload parts of files
+    # memorySize: 126
+    events:
+      - http:
+          path: upload/file
+          method: post
+          cors: true
+          # private: true
+  getPartSingedUrl:
+    handler: src/Multipart.getPresinedURL
+    events:
+      - http:
+          path: part/url
+          method: post
+          cors: true
+          # private: true
+  completeUpload:
+    handler: src/Multipart.completeUploadMultipart
+    events:
+      - http:
+          path: complete/upload
+          method: post
+          cors: true
+          # private: true
+
+
+
+# plugins:
+#   - serverless-offline
+#   - serverless-s3-local
+
+resources:
+  Resources:
+    demobucketfileupload:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:custom.BUCKET_FILES_NAME}
+        # BucketName: sanju-bucket
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: true
+          BlockPublicPolicy: true
+          IgnorePublicAcls: true
+          RestrictPublicBuckets: true
+        CorsConfiguration:
+          CorsRules:
+            - AllowedMethods:
+                - "GET"
+                - "PUT"
+                - "POST"
+                - "DELETE"
+              AllowedOrigins:
+                - "*"
+              AllowedHeaders:
+                - "*"
+              ExposedHeaders:
+                - ETag
+
